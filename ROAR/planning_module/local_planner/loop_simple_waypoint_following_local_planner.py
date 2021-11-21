@@ -69,7 +69,7 @@ class LoopSimpleWaypointFollowingLocalPlanner(LocalPlanner):
 
     def run_in_series(self) -> VehicleControl:
         # get vehicle's location
-        vehicle_transform: Union[Transform, None] = self.agent.vehicle.transform
+        vehicle_transform: Union[Transform, None] = self.agent.vehicle.control
 
         if vehicle_transform is None:
             raise AgentException("I do not know where I am, I cannot proceed forward")
@@ -91,10 +91,10 @@ class LoopSimpleWaypointFollowingLocalPlanner(LocalPlanner):
         self.set_closeness_threhold(self.closeness_threshold_config)
         # get current waypoint
         curr_closest_dist = float("inf")
+
         while True:
             if len(self.way_points_queue) == self._curr_waypoint_index:
-                self._curr_waypoint_index = 0 + 10  # this is so that i don't actually just look at the zeroth one
-                # when i loop back
+                self._curr_waypoint_index = 0 + 10  # this is so that i don't actually just look at the zeroth one when i loop back
             waypoint: Transform = self.way_points_queue[self._curr_waypoint_index]
             curr_dist = self.agent.vehicle.transform.location.distance(waypoint.location)
             if curr_dist < curr_closest_dist:

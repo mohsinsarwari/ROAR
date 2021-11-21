@@ -30,7 +30,7 @@ class Agent(ABC):
     def __init__(self, vehicle: Vehicle, agent_settings: AgentConfig, imu: Optional[IMUData] = None,
                  should_init_default_cam=True, **kwargs):
         """
-        Initialize cameras, output folder, and logging utilities
+        Initialize cameras, output_oct_10 folder, and logging utilities
 
         Args:
             vehicle: Vehicle instance
@@ -55,9 +55,7 @@ class Agent(ABC):
             self.output_folder_path / "rear_rgb"
         self.should_save_sensor_data = self.agent_settings.save_sensor_data
         self.transform_output_folder_path = self.output_folder_path / "transform"
-
         self.vehicle_state_output_folder_path = self.output_folder_path / "vehicle_state"
-        self.local_planner_next_waypoint_output_foler_path = self.output_folder_path / "next_waypoints"
 
         self.local_planner: Optional[LocalPlanner] = None
         self.behavior_planner: Optional[BehaviorPlanner] = None
@@ -66,9 +64,11 @@ class Agent(ABC):
         self.threaded_modules: List[Module] = []
         self.time_counter = 0
 
+        self.transform_history: List[Transform] = []
+
         if should_init_default_cam:
             self.init_cam()
-        self.transform_file: Optional = None
+
         if self.should_save_sensor_data:
             self.front_depth_camera_output_folder_path.mkdir(parents=True,
                                                              exist_ok=True)
@@ -80,10 +80,7 @@ class Agent(ABC):
                                                     exist_ok=True)
             self.vehicle_state_output_folder_path.mkdir(parents=True,
                                                         exist_ok=True)
-            self.local_planner_next_waypoint_output_foler_path.mkdir(parents=True, exist_ok=True)
             self.write_meta_data()
-            self.transform_file = (Path(self.transform_output_folder_path) /
-                                   f"{datetime.now().strftime('%m_%d_%Y_%H')}.txt").open('w+')
         self.kwargs: Dict[str, Any] = kwargs  # additional info
 
     def write_meta_data(self):
@@ -102,7 +99,7 @@ class Agent(ABC):
     def init_cam(self) -> None:
         """
         Initialize the cameras by calculating the camera intrinsics and
-        ensuring that the output folder path exists
+        ensuring that the output_oct_10 folder path exists
 
         Returns:
             None
@@ -138,7 +135,7 @@ class Agent(ABC):
         """
         self.time_counter += 1
         self.sync_data(sensors_data=sensors_data, vehicle=vehicle)
-        if self.should_save_sensor_data:
+        if self.should_save_sensor_data and self.time_counter % 5 == 0:
             self.save_sensor_data_async()
         if self.local_planner is not None and self.local_planner.is_done():
             self.is_done = True
@@ -159,6 +156,7 @@ class Agent(ABC):
         """
 
         self.vehicle = vehicle
+        self.transform_history.append(self.vehicle.transform)
         if self.front_rgb_camera is not None:
             self.front_rgb_camera.data = (
                 sensors_data.front_rgb.data
@@ -224,7 +222,11 @@ class Agent(ABC):
             self.logger.error(
                 f"Failed to save at Frame {self.time_counter}. Error: {e}")
         try:
-            self.transform_file.write(self.vehicle.transform.record() + "\n")
+            transform_file = (Path(self.transform_output_folder_path) /
+                              f"{datetime.now().strftime('%m_%d_%Y_%H')}.txt").open('a')
+            print(f"Recording -> {self.vehicle.transform.record()}")
+            transform_file.write(self.vehicle.transform.record() + "\n")
+            transform_file.close()
         except Exception as e:
             self.logger.error(
                 f"Failed to save at Frame {self.time_counter}. Error: {e}")
@@ -238,24 +240,11 @@ class Agent(ABC):
             self.logger.error(
                 f"Failed to save at Frame {self.time_counter}. Error: {e}")
 
-        try:
-            if self.local_planner is not None and self.local_planner.way_points_queue is not None and len(
-                    self.local_planner.way_points_queue) > 0:
-                next_waypoint: Transform = self.local_planner.way_points_queue[0]
-
-                np.save((Path(self.local_planner_next_waypoint_output_foler_path) / f"frame_{now}").as_posix(),
-                        next_waypoint.location.to_array())
-        except Exception as e:
-            self.logger.error(f"Failed to save at Frame {self.time_counter}. Error: {e}")
-
     def start_module_threads(self):
         for module in self.threaded_modules:
-            module.start()
-            self.logger.debug(f"Module: {module.name} -> started")
+            threading.Thread(target=module.run_in_threaded, daemon=True).start()
+            self.logger.debug(f"{module.__class__.__name__} thread started")
 
     def shutdown_module_threads(self):
         for module in self.threaded_modules:
             module.shutdown()
-
-        if self.transform_file is not None and self.transform_file.closed is False and self.should_save_sensor_data:
-            self.transform_file.close()

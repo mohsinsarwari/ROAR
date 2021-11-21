@@ -11,9 +11,9 @@ import cv2
 class iOSBridge(Bridge):
     def convert_location_from_source_to_agent(self, source) -> Location:
         return Location(
-            x=-source.x,
+            x=source.x,
             y=-source.z,
-            z=-source.y
+            z=source.y
         )
 
     def convert_rotation_from_source_to_agent(self, source: Rotation) -> Rotation:
@@ -25,8 +25,7 @@ class iOSBridge(Bridge):
         return r
 
     def convert_transform_from_source_to_agent(self, source: Transform) -> Transform:
-        return Transform(location=self.convert_location_from_source_to_agent(source.location),
-                         rotation=self.convert_rotation_from_source_to_agent(source.rotation))
+        return Transform(location=self.convert_location_from_source_to_agent(source.location), rotation=self.convert_rotation_from_source_to_agent(source.rotation))
 
     def convert_control_from_source_to_agent(self, source: VehicleControl) -> VehicleControl:
         return source
@@ -46,14 +45,11 @@ class iOSBridge(Bridge):
     def convert_sensor_data_from_source_to_agent(self, source: dict) -> SensorsData:
         front_rgb = source.get("front_rgb", None)
         front_depth = source.get("front_depth", None)
-        rear_rgb = source.get("rear_rgb", None)
         sensor_data = SensorsData()
         if front_rgb is not None:
             sensor_data.front_rgb = self.convert_rgb_from_source_to_agent(front_rgb)
         if front_depth is not None:
             sensor_data.front_depth = self.convert_depth_from_source_to_agent(front_depth)
-        if rear_rgb is not None:
-            sensor_data.rear_rgb = self.convert_rgb_from_source_to_agent(rear_rgb)
         return sensor_data
 
     def convert_vehicle_from_source_to_agent(self, source) -> Vehicle:
@@ -65,7 +61,11 @@ class iOSBridge(Bridge):
         if transform is not None:
             vehicle.transform = self.convert_transform_from_source_to_agent(transform)
         if velocity is not None:
-            vehicle.velocity = velocity
+            vehicle.velocity = Vector3D(
+                x=velocity.x,
+                y=-velocity.z,
+                z=velocity.y,
+            )
         if control is not None:
             vehicle.control = self.convert_control_from_source_to_agent(control)
         if acceleration is not None:

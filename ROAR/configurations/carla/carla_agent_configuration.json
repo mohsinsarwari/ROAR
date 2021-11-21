@@ -65,6 +65,7 @@
       [0,0,-1]
     ]
   },
+  "_comments": "// if you would like to use your own map, please put it under ROAR/configurations/YOUR_WAYPOINT.txt",
   "waypoint_file_path": "./ROAR_Sim/data/easy_map_waypoints.txt",
   "pid_config_file_path": "./ROAR/configurations/carla/carla_pid_config.json",
   "simple_waypoint_local_planner_config_file_path": "./ROAR/configurations/carla/carla_simple_waypoint_local_planner_config.json",
@@ -73,6 +74,6 @@
   "spawn_point_id": 1,
   "show_sensors_data": true,
   "save_sensor_data": false,
-  "max_speed": 150
+  "max_speed": 100
 }
 

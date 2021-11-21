@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 from ROAR_iOS.ios_runner import iOSRunner
 from ROAR.configurations.configuration import Configuration as AgentConfig
@@ -5,10 +6,11 @@ from ROAR_iOS.config_model import iOSConfig
 from ROAR_Unity.unity_runner import iOSUnityRunner
 # from ROAR.agent_module.ios_agent import iOSAgent
 # from ROAR.agent_module.free_space_auto_agent import FreeSpaceAutoAgent
-# from ROAR.agent_module.line_following_agent_2 import LineFollowingAgent
+from ROAR.agent_module.line_following_agent_2 import LineFollowingAgent
 from ROAR.agent_module.special_agents.recording_agent import RecordingAgent
 from ROAR.agent_module.traffic_light_detector_agent import TrafficLightDectectorAgent
 from ROAR.agent_module.aruco_following_agent import ArucoFollowingAgent
+from ROAR.agent_module.udp_multicast_agent import UDPMultiCastAgent
 from ROAR.agent_module.forward_only_agent import ForwardOnlyAgent
 from ROAR.utilities_module.vehicle_models import Vehicle
 import logging
@@ -27,6 +29,39 @@ class mode_list(list):
     # list subclass that uses lower() when testing for 'in'
     def __contains__(self, other):
         return super(mode_list, self).__contains__(other.lower())
+
+
+def showIPUntilAckUDP():
+    img = np.array(qrcode.make(f"{get_ip()}").convert('RGB'))
+    success = False
+    addr = None
+
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.settimeout(0.1)
+
+    try:
+        s.bind((get_ip(), 8008))
+        while success is False:
+            try:
+                cv2.imshow("Scan this code to connect to phone", img)
+                k = cv2.waitKey(1) & 0xff
+                seg, addr = s.recvfrom(1024)  # this command might timeout
+
+                if k == ord('q') or k == 27:
+                    s.close()
+                    break
+                addr = addr
+                success = True
+                for i in range(10):
+                    s.sendto(b"hi", addr)
+            except socket.timeout as e:
+                logging.info(f"Please tap on the ip address to scan QR code. ({get_ip()}:{8008}). {e}")
+    except Exception as e:
+        logging.error(f"Unable to bind socket: {e}")
+    finally:
+        s.close()
+        cv2.destroyWindow("Scan this code to connect to phone")
+    return success, addr[0]
 
 
 def showIPUntilAck():
@@ -107,11 +142,11 @@ if __name__ == '__main__':
 
         success = False
         if args.reconnect:
-            success, addr = showIPUntilAck()
+            success, addr = showIPUntilAckUDP()
             if success:
                 ios_config.ios_ip_addr = addr
                 json.dump(ios_config.dict(), ios_config_file_path.open('w'), indent=4)
-
+                time.sleep(2)
         if success or args.reconnect is False:
             agent = ForwardOnlyAgent(vehicle=Vehicle(), agent_settings=agent_config, should_init_default_cam=True)
             if args.use_unity:
