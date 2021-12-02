@@ -61,8 +61,11 @@ class SceneDetector(Detector):
         image = self.agent.front_rgb_camera.data.copy()
 
         mask = cv2.inRange(src=hsv, lowerb=self.track_lowerb, upperb=self.track_upperb)
+        # print("img size:", image.shape)
+        # print("mask size", mask.shape)
 
         height = mask.shape[0] // 3
+        # print(mask.shape[0])
 
         sec1 = mask[:height]
         sec2 = mask[height:height*2]
@@ -91,8 +94,9 @@ class SceneDetector(Detector):
 
         cv2.imshow("mask", mask)
         cv2.imshow("image", image)
-
+        # print(avg1, avg2, avg3)
         return [avg1_up, avg2_up, avg3_up]
+        # return [avg1, avg2, avg3]
 
 
     # return [((x, y), "patch name"), ...]
