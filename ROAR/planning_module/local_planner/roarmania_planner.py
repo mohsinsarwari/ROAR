@@ -22,9 +22,9 @@ class ROARManiaPlanner(Module):
         """
         # Decide between lane or patch first,
         # then sort patches by distance and type and return one of them
-        lanes = scene['lane']
-
-        if lanes:
+        if scene:
+            print(scene)
+            lanes = scene['lane']
             error_at_top = self.find_error_at(
                 lanes["top"],
                 error_scaling=[
@@ -75,17 +75,16 @@ class ROARManiaPlanner(Module):
                 error = error_at_top
             print(error)
             return error
-        else:
-            return VehicleControl()
 
     def find_error_at(self, data, error_scaling) -> Any:
-        x = data[1]
-        error = x - self.center_x
-        for e, scale in error_scaling:
-            if abs(error) <= e:
-                error = error * scale
-                break
-        return error
+        if data is not None:
+            x = data[1]
+            error = x - self.agent.center_x
+            for e, scale in error_scaling:
+                if abs(error) <= e:
+                    error = error * scale
+                    break
+            return error
 
     def run_in_threaded(self, **kwargs):
         pass

@@ -8,7 +8,7 @@ from ROAR.configurations.configuration import Configuration as AgentConfig
 from typing import Optional
 
 
-class SceneDetector(Detector):
+class RoarmaniaSceneDetector(Detector):
     def save(self, **kwargs):
         pass
 
@@ -19,12 +19,12 @@ class SceneDetector(Detector):
         self.GROUND_ROW = 140
 
         #track hsv bounds (captures low wavelength colors (red, yellow, etc.))
-        self.track_lowerb=(0, 0, 180)
-        self.track_upperb=(255, 255, 255)
+        self.track_lowerb=(0, 0, 195)
+        self.track_upperb=(165, 255, 255)
 
     def run_in_series(self, **kwargs):
         scene = dict()
-        if self.agent.front_depth_camera.data is not None and self.agent.front_rgb_camera.data is not None:
+        if self.agent.front_rgb_camera.data is not None:
 
             hsv, depth = self.preprocess(self.agent.front_rgb_camera.data, self.agent.front_depth_camera.data)
 
@@ -43,7 +43,13 @@ class SceneDetector(Detector):
 
         return cropped_hsv, cropped_depth
 
-    def find_median(self, img_sec, height_offset):
+    def find_median(self, img_sec, height_offset, width_offset=0):
+
+        perc = np.sum(img_sec) / (255*img_sec.shape[0]*img_sec.shape[1])
+
+        if perc < 0.03:
+            return None
+
         values = []
         for y in range(img_sec.shape[0]):
             for x in range(img_sec.shape[1]):
@@ -64,35 +70,56 @@ class SceneDetector(Detector):
         # print("img size:", image.shape)
         # print("mask size", mask.shape)
 
-        height = mask.shape[0] // 3
-        # print(mask.shape[0])
+        height_1 = mask.shape[0] // 6
+        height_2 = 3 * height_1
 
-        sec1 = mask[:height]
-        sec2 = mask[height:height*2]
-        sec3 = mask[height*2:]
+        width_1 = mask.shape[0] // 4
+
+        sec1 = mask[:height_1]
+        sec2 = mask[height_1:height_2]
+        sec3 = mask[height_2:]
+
+        mask = cv2.line(mask, (0, height_1), (mask.shape[1], height_1), 150, 1)
+        mask = cv2.line(mask, (0, height_2), (mask.shape[1], height_2), 180, 1)
+
+        img_height_1 = (height_1 + self.GROUND_ROW)*5
+        img_height_2 = (height_2 + self.GROUND_ROW)*5
+
+        image = cv2.line(image, (0, self.GROUND_ROW*5), (image.shape[1], self.GROUND_ROW*5), [255, 255, 0], 5)
+        image = cv2.line(image, (0, img_height_1), (image.shape[1], img_height_1), [255, 255, 0], 5)
+        image = cv2.line(image, (0, img_height_2), (image.shape[1], img_height_2), [255, 255, 0], 5)   
 
         wid = 5
-        wid_up = 50
+        wid_up = 10
 
         avg1 = self.find_median(sec1, 0)
-        avg1_up = (avg1+self.GROUND_ROW)*5
 
-        mask[avg1[0]-wid: avg1[0]+wid, avg1[1]-wid: avg1[1]+wid] = 100
-        image[avg1_up[0]-wid_up: avg1_up[0]+wid_up, avg1_up[1]-wid_up: avg1_up[1]+wid_up] = [255, 0, 0]
+        if avg1 is not None:
+            avg1_up = (avg1+[self.GROUND_ROW, 0])*5
+            mask[avg1[0]-wid: avg1[0]+wid, avg1[1]-wid: avg1[1]+wid] = 100
+            image[avg1_up[0]-wid_up: avg1_up[0]+wid_up, avg1_up[1]-wid_up: avg1_up[1]+wid_up] = [255, 0, 0]
+        else:
+            avg1_up = None
 
-        avg2 = self.find_median(sec2, height)
-        avg2_up = (avg2+self.GROUND_ROW)*5
+        avg2 = self.find_median(sec2, height_1)
 
-        mask[avg2[0]-wid: avg2[0]+wid, avg2[1]-wid: avg2[1]+wid] = 100
-        image[avg2_up[0]-wid_up: avg2_up[0]+wid_up, avg2_up[1]-wid_up: avg2_up[1]+wid_up] = [255, 0, 0]
+        if avg2 is not None:
+            avg2_up = (avg2+[self.GROUND_ROW, 0])*5
+            mask[avg2[0]-wid: avg2[0]+wid, avg2[1]-wid: avg2[1]+wid] = 100
+            image[avg2_up[0]-wid_up: avg2_up[0]+wid_up, avg2_up[1]-wid_up: avg2_up[1]+wid_up] = [255, 0, 0]
+        else:
+            avg2_up = None
 
-        avg3 = self.find_median(sec3, 2*height)
-        avg3_up = (avg3+self.GROUND_ROW)*5
+        avg3 = self.find_median(sec3, height_2)
 
-        mask[avg3[0]-wid: avg3[0]+wid, avg3[1]-wid: avg3[1]+wid] = 100
-        image[avg3_up[0]-wid_up: avg3_up[0]+wid_up, avg3_up[1]-wid_up: avg3_up[1]+wid_up] = [255, 0, 0]
+        if avg3 is not None:
+            avg3_up = (avg3+[self.GROUND_ROW, 0])*5
+            mask[avg3[0]-wid: avg3[0]+wid, avg3[1]-wid: avg3[1]+wid] = 100
+            image[avg3_up[0]-wid_up: avg3_up[0]+wid_up, avg3_up[1]-wid_up: avg3_up[1]+wid_up] = [255, 0, 0]
+        else:
+            avg3_up = None
 
-        cv2.imshow("mask", mask)
+        #cv2.imshow("mask", mask)
         cv2.imshow("image", image)
         # print(avg1, avg2, avg3)
         return {"top": avg1_up, "mid": avg2_up, "bot": avg3_up}
