@@ -95,7 +95,7 @@ class SceneDetector(Detector):
         cv2.imshow("mask", mask)
         cv2.imshow("image", image)
         # print(avg1, avg2, avg3)
-        return [avg1_up, avg2_up, avg3_up]
+        return {"top": avg1_up, "mid": avg2_up, "bot": avg3_up}
         # return [avg1, avg2, avg3]
 
 
