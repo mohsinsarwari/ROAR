@@ -22,39 +22,70 @@ class ROARManiaPlanner(Module):
         """
         # Decide between lane or patch first,
         # then sort patches by distance and type and return one of them
-        if 'lane' in scene.keys():
-            error_list = []
-            lane = scene['lane']
-            errors = {}
-            for section, coord in lane.items():
-                if coord:
-                    # sections are "top", "mid", "bot"
-                    errors[section] = self.find_error_at(coord,
-                                                         error_scaling=[
-                                                             (20, 0.1),
-                                                             (40, 0.4),
-                                                             (60, 0.6),
-                                                             (70, 0.7),
-                                                             (80, 0.8),
-                                                             (100, 0.9),
-                                                             (116, 1.2)
-                                                         ])
+        lanes = scene['lane']
 
+        if lanes:
+            error_at_top = self.find_error_at(
+                lanes["top"],
+                error_scaling=[
+                    (20, 0.1),
+                    (40, 0.4),
+                    (60, 0.6),
+                    (70, 0.7),
+                    (80, 0.8),
+                    (100, 0.9),
+                    (200, 2)
+                ]
+            )
+
+            error_at_mid = self.find_error_at(
+                lanes["mid"],
+                error_scaling=[
+                    (20, 0.1),
+                    (40, 0.6),
+                    (60, 0.7),
+                    (80, 0.85),
+                    (100, 0.975),
+                    (200, 1.5)
+                ]
+            )
+
+            error_at_bot = self.find_error_at(
+                lanes["bot"],
+                error_scaling=[
+                    (20, 0.1),
+                    (40, 0.75),
+                    (60, 0.8),
+                    (80, 0.9),
+                    (100, 0.95),
+                    (200, 1)
+                ]
+            )
             # Decide what the correct format for this is
-            if errors["top"][1] == 0 and errors["mid"][1] == 0 and errors["bot"][1] == 0:
+            if error_at_top is None and error_at_mid is None and error_at_bot is None:
                 return None
 
             # TODO: rewrite this in terms of the new errors format
             error = 0
-            if error_list[2][1] != 0:
-                error = error_list[2][1]
-            if error_list[1][1] != 0:
-                error = error_list[1][1]
-            if error_list[0][1] != 0:
-                error = error_list[0][1]
+            if error_at_bot != 0:
+                error = error_at_bot
+            if error_at_mid != 0:
+                error = error_at_mid
+            if error_at_top != 0:
+                error = error_at_top
             print(error)
+            return error
         else:
             return VehicleControl()
+
+    def find_error_at(self, data, error_scaling) -> Any:
+        x = data[1]
+        error = x - self.center_x
+        for e, scale in error_scaling:
+            if abs(error) <= e:
+                error = error * scale
+                break
+        return error
 
     def run_in_threaded(self, **kwargs):
         pass

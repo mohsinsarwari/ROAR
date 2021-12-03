@@ -50,18 +50,6 @@ class RoarmaniaAgent(Agent):
                 # is flat or up slope, execute adjusted previous command
                 return self.execute_prev_command()
 
-
-
-    def find_error_at(self, data, error_scaling) -> Optional[tuple]:
-        y = 116 - (data[0]/5 - self.GROUND_ROW)
-        x = data[1]/5 - self.GROUND_ROW
-        error = x - self.center_x
-        for e, scale in error_scaling:
-            if abs(error) <= e:
-                error = error * scale
-                break
-        return y, error
-
     def execute_prev_command(self):
         # no lane found, execute the previous control with a decaying factor
         self.logger.info("Executing prev")
