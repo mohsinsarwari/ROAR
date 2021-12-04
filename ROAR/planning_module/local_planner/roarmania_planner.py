@@ -67,14 +67,11 @@ class ROARManiaPlanner(Module):
 
             # TODO: rewrite this in terms of the new errors format
             error = 0
-            if error_at_bot != 0:
-                error = error_at_bot
-            if error_at_mid != 0:
-                error = error_at_mid
-            if error_at_top != 0:
-                error = error_at_top
-            print(error)
-            return error
+
+            errors = [error_at_top, error_at_mid, error_at_bot]
+
+            
+            return sum([error for error in errors if error]) / 3
 
     def find_error_at(self, data, error_scaling) -> Any:
         if data is not None:
