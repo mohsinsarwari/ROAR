@@ -12,76 +12,57 @@ class ROARManiaPlanner(Module):
         self.logger = logging
         self.logger = logging.getLogger(__name__)
         self.agent = agent
-        # TODO: figure out what this should be
-        self.curr_goal = None
+        self.side = "center" # Either "center", "left", "right"
 
     def run_in_series(self, scene) -> Any:
         """
-        On every step, take in a scene and return one of the lat_errors as the one
-        to PID on.
+        Return the error to PID on. 
         """
         # Decide between lane or patch first,
         # then sort patches by distance and type and return one of them
-        if scene:
-            print(scene)
-            lanes = scene['lane']
-            error_at_top = self.find_error_at(
-                lanes["top"],
-                error_scaling=[
-                    (20, 0.1),
-                    (40, 0.4),
-                    (60, 0.6),
-                    (70, 0.7),
-                    (80, 0.8),
-                    (100, 0.9),
-                    (200, 2)
-                ]
-            )
+        # scene = {"lane_error": error_lane, "patches": [(type, side, y_offset)], "on_patch": type]}
+        # type = ["ice", "boost"], side = ["left", "right", "center"], y_offset = float
 
-            error_at_mid = self.find_error_at(
-                lanes["mid"],
-                error_scaling=[
-                    (20, 0.1),
-                    (40, 0.6),
-                    (60, 0.7),
-                    (80, 0.85),
-                    (100, 0.975),
-                    (200, 1.5)
-                ]
-            )
+        # Algorithm: 
+        # 1. Follow main lane if a patch is not present.
+        # 2. If patch is present and desirable, go for it and give the correct lat_error to controller
+        # 3. After you've gone over patch, return back to main lane as quickly as possible. 
+        # 4. If can't see main lane, repeat previous action. 
+        # CAVEAT: We don't handle the case that we can see patches but not the lane
 
-            error_at_bot = self.find_error_at(
-                lanes["bot"],
-                error_scaling=[
-                    (20, 0.1),
-                    (40, 0.75),
-                    (60, 0.8),
-                    (80, 0.9),
-                    (100, 0.95),
-                    (200, 1)
-                ]
-            )
-            # Decide what the correct format for this is
-            if error_at_top is None and error_at_mid is None and error_at_bot is None:
-                return None
+        PATCH_ERRORS = {"left": None, "right": None}
 
-            # TODO: rewrite this in terms of the new errors format
-            error = 0
+        if not scene["lane_error"]:
+            # We don't know where the lane is 
+            self.repeat_prev_action()
 
-            errors = [error_at_top, error_at_mid, error_at_bot]
+        elif scene["patches"]:
+            # We know where the lane is, and there are patches
+            scene["patches"].sort(key=lambda patch: patch[2]) # patch[2] is the y_offset
+            for patch in scene["patches"]:
+                patch_t, side, y_offset = patch
+                if patch_t == "ice" and self.side == side:
+                    # Ice detected on the same side we are. Try to avoid
+                    if side == "center":
+                        # Patch detected in center of lane. Go to left by default
+                        self.side = "left"
+                        return scene["lane_error"] + PATCH_ERRORS["left"]
+                    else:
+                        self.side = "center"
+                        return scene["lane_error"]
+                elif patch_t == "boost":
+                    # Boost detected, go for it
+                    self.side = side
+                    return scene["lane_error"] + PATCH_ERRORS[side]
+        else:
+            # We can see the lane but not patches, follow the lane
+            return scene["lane_error"]
 
             
-            return sum([error for error in errors if error]) / 3
+                    
+    def repeat_prev_action(self):
+        return None
 
-    def find_error_at(self, data, error_scaling) -> Any:
-        if data is not None:
-            x = data[1]
-            error = x - self.agent.center_x
-            for e, scale in error_scaling:
-                if abs(error) <= e:
-                    error = error * scale
-                    break
-            return error
 
     def run_in_threaded(self, **kwargs):
         pass

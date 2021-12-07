@@ -27,6 +27,7 @@ class RoarmaniaAgent(Agent):
         if self.front_rgb_camera.data is not None:
             scene = self.scene_detector.run_in_series()
             lat_error = self.planner.run_in_series(scene)
+            self.kwargs["on_patch"] = scene["on_patch"]
             print("error: ", lat_error)
             if lat_error is not None:
                 self.kwargs["lat_error"] = lat_error
