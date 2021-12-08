@@ -17,12 +17,23 @@ class RealWorldImageBasedPIDController(Controller):
         lat_error_deque_length = 10
         self.lat_error_queue = deque(maxlen=lat_error_deque_length)  # this is how much error you want to accumulate
         self.long_error_queue = deque(maxlen=long_error_deque_length)  # this is how much error you want to accumulate
-        self.target_speed = 10  # m / s
+        self.target_speed = 2  # m / s
         self.config = json.load(Path(self.agent.agent_settings.pid_config_file_path).open('r'))
         self.long_config = self.config["longitudinal_controller"]
         self.lat_config = self.config["latitudinal_controller"]
+        self.min_throttle = 0.058
+        self.max_throttle = 0.08
 
     def run_in_series(self, next_waypoint=None, **kwargs) -> VehicleControl:
+        current_patch = self.agent.kwargs.get("on_path")
+        print("current patch: ", current_patch)
+        if current_patch == "boost":
+            self.max_throttle = 0.12
+            self.target_speed = 3.5
+        elif current_patch == "ice":
+            self.max_throttle = 0.06
+            self.target_speed = 1.0
+        print("target speed: ", self.target_speed)
         steering = self.lateral_pid_control()
         throttle = self.long_pid_control()
         return VehicleControl(throttle=throttle, steering=steering)
@@ -65,7 +76,7 @@ class RealWorldImageBasedPIDController(Controller):
         e_i = k_i * ie
         e_incline = 0.015 * incline
         total_error = e_p + e_d + e_i + e_incline
-        long_control = np.clip(total_error, 0, 1)
+        long_control = np.clip(total_error, self.min_throttle, self.max_throttle)
         # print(f"speed = {self.agent.vehicle.get_speed(self.agent.vehicle)} "
         #       f"e = {round(total_error,3)}, "
         #       f"e_p={round(e_p,3)},"
