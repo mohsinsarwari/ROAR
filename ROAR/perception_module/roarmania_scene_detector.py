@@ -6,6 +6,7 @@ from ROAR.utilities_module.data_structures_models import SensorsData
 from ROAR.utilities_module.vehicle_models import Vehicle, VehicleControl
 from ROAR.configurations.configuration import Configuration as AgentConfig
 from typing import Optional
+from collections import deque
 
 
 class RoarmaniaSceneDetector(Detector):
@@ -14,6 +15,8 @@ class RoarmaniaSceneDetector(Detector):
 
     def __init__(self, agent: Agent, **kwargs):
         super().__init__(agent, **kwargs)
+
+        self.error_minthresh = 0
 
         self.actual_scale = [1280, 720]
         self.processing_scale = [256, 144]
@@ -31,8 +34,8 @@ class RoarmaniaSceneDetector(Detector):
         self.GROUND_ROW = 6 * increment
 
         # range to detect lane and patches
-        self.height_1 = 7 * increment
-        self.height_2 = 9 * increment
+        self.height_1 = 8 * increment
+        self.height_2 = self.processing_scale[0]
 
         # range to detect on patch
         self.in_front = 8 * increment
@@ -52,6 +55,9 @@ class RoarmaniaSceneDetector(Detector):
         #are we about to go over a patch?
         self.patch_ahead = False
 
+        # deque for smoothening error
+        self.error_deqeue = deque(maxlen=3)
+
     def run_in_series(self, **kwargs):
         scene = dict()
         if self.agent.front_rgb_camera.data is not None:
@@ -63,6 +69,8 @@ class RoarmaniaSceneDetector(Detector):
             hsv_main_section = hsv[self.height_1:self.height_2, :, :]
 
             lane_point, error = self.detect_lane(hsv_main_section, self.height_1)
+            if error is not None and abs(error) < self.error_minthresh:
+            	error = 0
             scene["lane_error"] = error
             if lane_point is not None:
                 image = cv2.circle(image, (lane_point[1], lane_point[0]), 15, (0, 255, 0), -1)
@@ -123,7 +131,9 @@ class RoarmaniaSceneDetector(Detector):
 
         if point is not None:
             point_up = point*self.ratio
-            return point_up, point_up[1] - (self.actual_scale[1] // 2)
+            error =  point_up[1] - (self.actual_scale[1] // 2)
+            self.error_deqeue.append(error)
+            return point_up, error
         else:
             return None, None
 

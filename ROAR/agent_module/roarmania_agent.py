@@ -39,6 +39,8 @@ class RoarmaniaAgent(Agent):
                 return self.vehicle.control
             else:
                 # did not see the line
+                # TODO: REMOVE THIS
+                return VehicleControl()
                 neutral = -90
                 incline = self.vehicle.transform.rotation.pitch - neutral
                 if incline < -10:
@@ -65,6 +67,6 @@ class RoarmaniaAgent(Agent):
             self.vehicle.control.steering = 1
         # self.logger.info("Cannot see line, executing prev cmd")
         self.prev_steerings.append(self.vehicle.control.steering)
-        self.vehicle.control.throttle = 0.06
+        self.vehicle.control.throttle = 0.09
         self.logger.info(f"No Lane found, executing discounted prev command: {self.vehicle.control}")
         return self.vehicle.control

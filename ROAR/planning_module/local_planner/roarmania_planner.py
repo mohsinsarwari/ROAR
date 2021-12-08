@@ -33,7 +33,7 @@ class ROARManiaPlanner(Module):
         # left has to be positive, right has to be negative
         PATCH_ERRORS = {"left": 100, "right": -100}
 
-        if not scene["lane_error"]:
+        if scene["lane_error"] is None:
             # We don't know where the lane is 
             return None
 

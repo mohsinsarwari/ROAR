@@ -17,12 +17,13 @@ class RealWorldImageBasedPIDController(Controller):
         lat_error_deque_length = 10
         self.lat_error_queue = deque(maxlen=lat_error_deque_length)  # this is how much error you want to accumulate
         self.long_error_queue = deque(maxlen=long_error_deque_length)  # this is how much error you want to accumulate
-        self.target_speed = 2  # m / s
+        self.target_speed = 10  # m / s
         self.config = json.load(Path(self.agent.agent_settings.pid_config_file_path).open('r'))
         self.long_config = self.config["longitudinal_controller"]
         self.lat_config = self.config["latitudinal_controller"]
-        self.min_throttle = 0.058
-        self.max_throttle = 0.08
+        self.min_throttle = 0.065
+        self.max_throttle = 0.065
+        # self.max_throttle = 0.08
 
     def run_in_series(self, next_waypoint=None, **kwargs) -> VehicleControl:
         current_patch = self.agent.kwargs.get("on_path")
@@ -95,4 +96,5 @@ class RealWorldImageBasedPIDController(Controller):
             if current_speed < speed_upper_bound:
                 k_p, k_d, k_i = kvalues["Kp"], kvalues["Kd"], kvalues["Ki"]
                 break
+        print(f"PID values are {np.array([k_p, k_d, k_i])}")
         return np.array([k_p, k_d, k_i])
