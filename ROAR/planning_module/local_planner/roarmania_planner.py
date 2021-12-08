@@ -30,11 +30,12 @@ class ROARManiaPlanner(Module):
         # 4. If can't see main lane, repeat previous action. 
         # CAVEAT: We don't handle the case that we can see patches but not the lane
 
-        PATCH_ERRORS = {"left": None, "right": None}
+        # left has to be positive, right has to be negative
+        PATCH_ERRORS = {"left": 100, "right": -100}
 
         if not scene["lane_error"]:
             # We don't know where the lane is 
-            self.repeat_prev_action()
+            return None
 
         elif scene["patches"]:
             # We know where the lane is, and there are patches
