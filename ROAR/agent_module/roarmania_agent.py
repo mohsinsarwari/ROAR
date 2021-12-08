@@ -20,14 +20,29 @@ class RoarmaniaAgent(Agent):
         self.controller = PIDController(agent=self)
         self.prev_steerings: deque = deque(maxlen=10)
         self.planner = ROARManiaPlanner(self)
+        self.on_patch = None
+        self.iter = 60
 
     def run_step(self, vehicle: Vehicle, sensors_data: SensorsData) -> VehicleControl:
         super().run_step(sensors_data=sensors_data, vehicle=vehicle)
 
+
         if self.front_rgb_camera.data is not None:
             scene = self.scene_detector.run_in_series()
             lat_error = self.planner.run_in_series(scene)
-            self.kwargs["on_patch"] = scene["on_patch"]
+
+            if scene["on_patch"]:
+                self.on_patch = scene["on_patch"]
+
+            if self.on_patch:
+                self.iter -= 1
+
+            if self.iter == 0:
+                self.on_patch = None
+                self.iter = 60
+
+            self.kwargs["on_patch"] = self.on_patch
+
             print("error: ", lat_error)
             if lat_error is not None:
                 self.kwargs["lat_error"] = lat_error
