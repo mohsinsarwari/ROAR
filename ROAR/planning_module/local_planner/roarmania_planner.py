@@ -33,33 +33,34 @@ class ROARManiaPlanner(Module):
         # left has to be negative, right has to be positive
         PATCH_ERRORS = {"left": -75, "right": 75}
 
-        if scene["lane_error"] is None:
-            # We don't know where the lane is 
-            return None
-
-        elif scene["patches"]:
-            # We know where the lane is, and there are patches
-            scene["patches"].sort(key=lambda patch: patch[2]) # patch[2] is the y_offset
-            for patch in scene["patches"]:
-                patch_t, side, y_offset = patch
-                # if patch_t == "ice" and self.side == side:
-                #     # Ice detected on the same side we are. Try to avoid
-                #     if side == "center":
-                #         # Patch detected in center of lane. Go to left by default
-                #         self.side = "left"
-                #         return scene["lane_error"] + PATCH_ERRORS["left"]
-                #     else:
-                #         self.side = "center"
-                #         return scene["lane_error"]
-                if patch_t == "boost":
-                    # Boost detected, go for it
-                    self.side = side
-                    return scene["lane_error"] + PATCH_ERRORS[side]
+        if scene["patches"]:
+            if scene["lane_error"] is not None:
+                # We know where the lane is, and there are patches
+                scene["patches"].sort(key=lambda patch: patch[2]) # patch[2] is the y_offset
+                for patch in scene["patches"]:
+                    patch_t, side, y_offset = patch
+                    if patch_t == "ice" and self.side == side:
+                        # Ice detected on the same side we are. Try to avoid
+                        if side == "center":
+                            # Patch detected in center of lane. Go to left by default
+                            self.side = "left"
+                            return scene["lane_error"] + PATCH_ERRORS["left"]
+                        else:
+                            self.side = "center"
+                            return scene["lane_error"]
+                    if patch_t == "boost":
+                        # Boost detected, go for it
+                        self.side = side
+                        return scene["lane_error"] + PATCH_ERRORS[side]
+            else:
+                # We can see patches but not the lane
+                if self.side == "left":
+                    return PATCH_ERRORS["right"]
+                elif self.side == "right":
+                    return PATCH_ERRORS["left"]
         else:
-            # We can see the lane but not patches, follow the lane
             return scene["lane_error"]
-
-            
+       
                     
     def repeat_prev_action(self):
         return None
