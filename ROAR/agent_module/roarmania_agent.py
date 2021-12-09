@@ -42,8 +42,7 @@ class RoarmaniaAgent(Agent):
                 self.iter = 60
 
             self.kwargs["on_patch"] = self.on_patch
-
-            print("error: ", lat_error)
+            
             if lat_error is not None:
                 self.kwargs["lat_error"] = lat_error
                 self.vehicle.control = self.controller.run_in_series()

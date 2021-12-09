@@ -39,7 +39,7 @@ class RoarmaniaSceneDetector(Detector):
 		self.lane_bottom = self.processing_scale[0]
 
 		# range to detect patch
-		self.patch_top = 7 * increment
+		self.patch_top = 6 * increment
 		self.patch_bottom = self.processing_scale[0]
 
 		# range to detect on patch
@@ -81,8 +81,8 @@ class RoarmaniaSceneDetector(Detector):
 			# if far_lane_point is not None:
 			# 	image = cv2.circle(image, (far_lane_point[1], far_lane_point[0]), 15, (0, 0, 100), -1)
 
-			lane_point, error = self.detect_lane(hsv_lane_section, self.lane_top)
-			scene["lane_error"] = error
+			lane_point = self.detect_lane(hsv_lane_section, self.lane_top)
+			scene["lane_point"] = lane_point
 
 			if lane_point is not None:
 				image = cv2.circle(image, (lane_point[1], lane_point[0]), 15, (0, 255, 0), -1)
@@ -151,12 +151,9 @@ class RoarmaniaSceneDetector(Detector):
 
 		if point is not None:
 			point_up = point*self.ratio
-			error =  point_up[1] - (self.actual_scale[1] // 2)
-			error_scaled = self.scale_error(error)
-			self.error_deqeue.append(error_scaled)
-			return point_up, error_scaled
+			return point_up
 		else:
-			return None, None
+			return None
 
 	def scale_error(self, error):
 		
@@ -271,7 +268,6 @@ class RoarmaniaSceneDetector(Detector):
 			self.patch_ahead_boost = True
 		elif self.patch_ahead_boost:
 			self.patch_ahead_boost = False
-			print("HELLLOOO")
 			patch = "boost"
 
 		return patch
