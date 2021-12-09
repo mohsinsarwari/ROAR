@@ -31,7 +31,7 @@ class ROARManiaPlanner(Module):
         # CAVEAT: We don't handle the case that we can see patches but not the lane
 
         # left has to be negative, right has to be positive
-        PATCH_ERRORS = {"left": -75, "right": 75}
+        PATCH_ERRORS = {"left": -90, "right": 90}
 
         if scene["patches"]:
             if scene["lane_error"] is not None:
@@ -55,9 +55,9 @@ class ROARManiaPlanner(Module):
             else:
                 # We can see patches but not the lane
                 if self.side == "left":
-                    return PATCH_ERRORS["right"]
+                    return PATCH_ERRORS["right"] / 2
                 elif self.side == "right":
-                    return PATCH_ERRORS["left"]
+                    return PATCH_ERRORS["left"] / 2
         else:
             return scene["lane_error"]
        

@@ -21,7 +21,7 @@ class RoarmaniaAgent(Agent):
         self.prev_steerings: deque = deque(maxlen=10)
         self.planner = ROARManiaPlanner(self)
         self.on_patch = None
-        self.iter = 60
+        self.iter = 20
 
     def run_step(self, vehicle: Vehicle, sensors_data: SensorsData) -> VehicleControl:
         super().run_step(sensors_data=sensors_data, vehicle=vehicle)

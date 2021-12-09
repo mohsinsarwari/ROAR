@@ -28,14 +28,22 @@ class RealWorldImageBasedPIDController(Controller):
         current_patch = self.agent.kwargs.get("on_patch")
         print("CURRENT_PATCH: ", current_patch)
         if current_patch == "boost":
-            self.max_throttle = 0.09
-            self.target_speed = 2.5
+            self.max_throttle = 0.089
+            self.min_throttle = 0.088
+            #self.target_speed = 3
         elif current_patch == "ice":
+            self.min_throttle = 0.04
             self.max_throttle = 0.06
             self.target_speed = 1.0
+        elif current_patch is None:
+            self.max_throttle = 0.08
+            self.min_throttle = 0.065
+            self.target_speed = 2
+
         print("target speed: ", self.target_speed)
         steering = self.lateral_pid_control()
         throttle = self.long_pid_control()
+        print("throttle: ", throttle)
         return VehicleControl(throttle=throttle, steering=steering)
 
     def lateral_pid_control(self) -> float:
@@ -78,6 +86,8 @@ class RealWorldImageBasedPIDController(Controller):
         e_incline = 0.015 * incline
         total_error = e_p + e_d + e_i + e_incline
         long_control = np.clip(total_error, self.min_throttle, self.max_throttle)
+        print("long_control: ", long_control)
+        print("min_throttle: ", self.min_throttle)
         # print(f"speed = {self.agent.vehicle.get_speed(self.agent.vehicle)} "
         #       f"e = {round(total_error,3)}, "
         #       f"e_p={round(e_p,3)},"

@@ -26,7 +26,7 @@ class RoarmaniaSceneDetector(Detector):
 		increment = height // 10
 
 		#detect patches as well?
-		self.run_detect_patches = False
+		self.run_detect_patches = True
 
 		# what pixel row the ground begins on (roughly)
 		self.GROUND_ROW = 6 * increment
@@ -34,9 +34,13 @@ class RoarmaniaSceneDetector(Detector):
 		#detect far point between ground row and far bottom
 		self.far_bottom = 7 * increment
 
-		# range to detect lane and patches
-		self.height_1 = 7 * increment
-		self.height_2 = self.processing_scale[0]
+		# range to detect lane
+		self.lane_top = 8 * increment
+		self.lane_bottom = self.processing_scale[0]
+
+		# range to detect patch
+		self.patch_top = 7 * increment
+		self.patch_bottom = self.processing_scale[0]
 
 		# range to detect on patch
 		self.in_front = 9 * increment
@@ -67,27 +71,25 @@ class RoarmaniaSceneDetector(Detector):
 
 			hsv = self.preprocess(image)
 
-			#section of image to detect lane and patches
-			hsv_main_section = hsv[self.height_1:self.height_2, :, :]
-			hsv_far_section = hsv[self.GROUND_ROW:self.far_bottom, :, :]
+			#section of image to detect lane
+			hsv_lane_section = hsv[self.lane_top:self.lane_bottom, :, :]
+			#section of image to detect patch
+			hsv_patch_section = hsv[self.patch_top:self.patch_bottom, :, :]
 
-			far_lane_point, far_error = self.detect_lane(hsv_far_section, self.GROUND_ROW)
-			if far_lane_point is not None:
-				image = cv2.circle(image, (far_lane_point[1], far_lane_point[0]), 15, (0, 0, 100), -1)
+			# hsv_far_section = hsv[self.GROUND_ROW:self.far_bottom, :, :]
+			# far_lane_point, far_error = self.detect_lane(hsv_far_section, self.GROUND_ROW)
+			# if far_lane_point is not None:
+			# 	image = cv2.circle(image, (far_lane_point[1], far_lane_point[0]), 15, (0, 0, 100), -1)
 
-			lane_point, error = self.detect_lane(hsv_main_section, self.height_1)
-
-			if error is None and far_error is not None and False:
-				scene["lane_error"] = far_error
-			else:
-				scene["lane_error"] = error
+			lane_point, error = self.detect_lane(hsv_lane_section, self.lane_top)
+			scene["lane_error"] = error
 
 			if lane_point is not None:
 				image = cv2.circle(image, (lane_point[1], lane_point[0]), 15, (0, 255, 0), -1)
 
 			if self.run_detect_patches:        
 
-				patches, points = self.detect_patches(hsv_main_section, self.height_1, lane_point)
+				patches, points = self.detect_patches(hsv_patch_section, self.patch_top, lane_point)
 				scene["patches"] = patches
 				for point in points:
 					if point[0] == "ice":
@@ -105,11 +107,16 @@ class RoarmaniaSceneDetector(Detector):
 
 		print(scene)
 
-		image = cv2.line(image, (0, self.GROUND_ROW*self.ratio), (image.shape[1], self.GROUND_ROW*self.ratio), [0, 255, 255], 2)
-		image = cv2.line(image, (0, self.far_bottom*self.ratio), (image.shape[1], self.far_bottom*self.ratio), [0, 255, 255], 2)
+		# image = cv2.line(image, (0, self.GROUND_ROW*self.ratio), (image.shape[1], self.GROUND_ROW*self.ratio), [0, 255, 255], 2)
+		# image = cv2.line(image, (0, self.far_bottom*self.ratio), (image.shape[1], self.far_bottom*self.ratio), [0, 255, 255], 2)
 
-		image = cv2.line(image, (0, self.height_1*self.ratio), (image.shape[1], self.height_1*self.ratio), [255, 255, 0], 3)
-		image = cv2.line(image, (0, self.height_2*self.ratio), (image.shape[1], self.height_2*self.ratio), [255, 255, 0], 3)
+		iimage = cv2.line(image, (image.shape[1] // 2, 0), (image.shape[1] // 2, image.shape[0]), [255, 255, 0], 3) 
+
+		image = cv2.line(image, (0, self.patch_top*self.ratio), (image.shape[1], self.patch_top*self.ratio), [0, 255, 255], 3)
+		image = cv2.line(image, (0, self.patch_bottom*self.ratio), (image.shape[1], self.patch_bottom*self.ratio), [0, 255, 255], 3)
+
+		image = cv2.line(image, (0, self.lane_top*self.ratio), (image.shape[1], self.lane_top*self.ratio), [255, 255, 0], 3)
+		image = cv2.line(image, (0, self.lane_bottom*self.ratio), (image.shape[1], self.lane_bottom*self.ratio), [255, 255, 0], 3)
 
 		image = cv2.line(image, (0, self.in_front*self.ratio), (image.shape[1], self.in_front*self.ratio), [100, 100, 100], 3)
 
@@ -156,9 +163,9 @@ class RoarmaniaSceneDetector(Detector):
 		error_scaling=[
 			(10, 0.1),
 			(20, 0.2),
-			(30, 0.3),
-			(40, 0.4),
-			(50, 0.6),
+			(40, 0.3),
+			(60, 0.4),
+			(80, 0.6),
 			(100, 0.9),
 			(200, 1)
 		]
@@ -254,13 +261,13 @@ class RoarmaniaSceneDetector(Detector):
 
 		patch = None
 
-		if perc_ice > 0.25:
+		if perc_ice > 0.15:
 			self.patch_ahead_ice = True
 		elif self.patch_ahead_ice:
 			self.patch_ahead_ice = False
 			patch = "ice"
 
-		if perc_boost > 0.25:
+		if perc_boost > 0.15:
 			self.patch_ahead_boost = True
 		elif self.patch_ahead_boost:
 			self.patch_ahead_boost = False
