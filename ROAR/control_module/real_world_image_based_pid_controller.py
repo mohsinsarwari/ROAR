@@ -21,34 +21,36 @@ class RealWorldImageBasedPIDController(Controller):
         self.config = json.load(Path(self.agent.agent_settings.pid_config_file_path).open('r'))
         self.long_config = self.config["longitudinal_controller"]
         self.lat_config = self.config["latitudinal_controller"]
-        self.min_throttle = 0.065
-        self.max_throttle = 0.08
+        self.min_throttle = 0.06
+        self.max_throttle = 0.07
 
     def run_in_series(self, next_waypoint=None, **kwargs) -> VehicleControl:
         current_patch = self.agent.kwargs.get("on_patch")
         print("CURRENT_PATCH: ", current_patch)
-        if current_patch == "boost":
-            self.max_throttle = 0.089
-            self.min_throttle = 0.088
+        if current_patch == "ice":
+            self.min_throttle = 0.03
+            self.max_throttle = 0.03
             #self.target_speed = 3
-        elif current_patch == "ice":
-            self.min_throttle = 0.04
-            self.max_throttle = 0.06
-            self.target_speed = 1.0
+        elif current_patch == "boost":
+            self.min_throttle = 0.09
+            self.max_throttle = 0.09
+            #self.target_speed = 1.0
         elif current_patch is None:
-            self.max_throttle = 0.08
-            self.min_throttle = 0.065
-            self.target_speed = 2
+            self.min_throttle = 0.06
+            self.max_throttle = 0.07
+            #self.target_speed = 2
 
         print("target speed: ", self.target_speed)
+
         steering = self.lateral_pid_control()
+
         throttle = self.long_pid_control()
         print("throttle: ", throttle)
         return VehicleControl(throttle=throttle, steering=steering)
 
     def lateral_pid_control(self) -> float:
         error = self.agent.kwargs.get("lat_error", 0)
-        error_dt = 0 if len(self.lat_error_queue) == 0 else error - self.lat_error_queue[-1]
+        error_dt = 0 if len(self.lat_error_queue) < 1 else error - self.lat_error_queue[-1]
         self.lat_error_queue.append(error)
         error_it = sum(self.lat_error_queue)
         k_p, k_d, k_i = self.find_k_values(self.agent.vehicle, self.lat_config)
@@ -56,7 +58,9 @@ class RealWorldImageBasedPIDController(Controller):
         #       f"kp, kd, ki = {k_p, k_d, k_i} ")
 
         e_p = k_p * error
+        print("Ep: ", e_p)
         e_d = k_d * error_dt
+        print("Ed: ", e_d)
         e_i = k_i * error_it
         print("Steering: ", e_p + e_d + e_i)
         lat_control = np.clip((e_p + e_d + e_i), -1, 1)
@@ -67,6 +71,7 @@ class RealWorldImageBasedPIDController(Controller):
         #       f"e_i={round(e_i, 3)},"
         #       f"lat_control={lat_control}")
         # print()
+        print("lat control: ", lat_control)
         return lat_control
 
     def long_pid_control(self) -> float:

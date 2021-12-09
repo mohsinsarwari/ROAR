@@ -21,7 +21,7 @@ class RoarmaniaAgent(Agent):
         self.prev_steerings: deque = deque(maxlen=10)
         self.planner = ROARManiaPlanner(self)
         self.on_patch = None
-        self.iter = 20
+        self.iter = 25
 
     def run_step(self, vehicle: Vehicle, sensors_data: SensorsData) -> VehicleControl:
         super().run_step(sensors_data=sensors_data, vehicle=vehicle)
@@ -39,12 +39,13 @@ class RoarmaniaAgent(Agent):
 
             if self.iter == 0:
                 self.on_patch = None
-                self.iter = 60
+                self.iter = 25
 
             self.kwargs["on_patch"] = self.on_patch
-            
+
             if lat_error is not None:
                 self.kwargs["lat_error"] = lat_error
+                print("lat_error: ", lat_error)
                 self.vehicle.control = self.controller.run_in_series()
                 print(self.vehicle.control)
                 self.prev_steerings.append(self.vehicle.control.steering)

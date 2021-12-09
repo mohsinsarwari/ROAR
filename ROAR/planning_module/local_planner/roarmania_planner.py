@@ -14,10 +14,11 @@ class ROARManiaPlanner(Module):
         self.logger = logging.getLogger(__name__)
         self.agent = agent
         self.side = "center" # Either "center", "left", "right"
+        self.last_error = None
 
 
         #norm_error value at which to increase scale
-        self.inflection = 0.3
+        self.inflection = 0.35
 
 
     def run_in_series(self, scene) -> Any:
@@ -36,50 +37,43 @@ class ROARManiaPlanner(Module):
         # 4. If can't see main lane, repeat previous action. 
         # CAVEAT: We don't handle the case that we can see patches but not the lane
 
-        # left has to be negative, right has to be positive
-        PATCH_ERRORS = {"left": -0.2, "right": 0.2}
         error = None
 
         if scene["lane_point"] is not None:
             #translate lane point into error for pid
             error = self.point_to_error(scene["lane_point"])
-            # We know where the lane is, and there are patches
-            if scene["patches"] is not None:
-                scene["patches"].sort(key=lambda patch: patch[2]) # patch[2] is the y_offset
-                for patch in scene["patches"]:
-                    patch_t, side, y_offset = patch
-                    if patch_t == "ice" and self.side == side:
-                        # Ice detected on the same side we are. Try to avoid
-                        if side == "center":
-                            # Patch detected in center of lane. Go to left by default
-                            self.side = "left"
-                            error += PATCH_ERRORS["left"]
-                        else:
-                            self.side = "center"
-                    if patch_t == "boost":
-                        # Boost detected, go for it
-                        self.side = side
-                        error += PATCH_ERRORS[side]
-            else:
-                # We can see patches but not the lane
-                if self.side == "left":
-                    error = PATCH_ERRORS["right"] / 2
-                elif self.side == "right":
-                    error = PATCH_ERRORS["left"] / 2
+        else:
+            error = self.last_error
 
-        print("Processed Error: ", error)
+        # We know where the lane is, and there are patches
+        if scene["patches"]:
+            scene["patches"].sort(key=lambda patch: patch[1][1]) # patch[1][0] is the y_offset
+            print("sorted patches: ", scene["patches"])
+            for i, patch in enumerate(scene["patches"]):
+                patch_t, patch_point = patch
+                if patch_t == "ice":
+                    error = self.avoid(patch_point, error)
+                if patch_t == "boost":
+                    error = self.pursue(patch_point, error)
+
+        self.last_error = error
         return error
        
+    def avoid(self, point, error):
+        return error - 0.4*self.point_to_error(point)
 
-    def point_to_error(self, lane_point):
+    def pursue(self, point, error):
+        return 0.6*self.point_to_error(point)
+
+    def point_to_error(self, point):
         #get pixel_offset from center
-        pixel_offset =  lane_point[1] - self.agent.center_x
+        pixel_offset =  point[1] - self.agent.center_x
 
         #normalize to [-1, 1]
         norm_offset = pixel_offset / 360
 
         #scale to have smaller errors be less significant
-        if abs(norm_offset) <= self.inflection:
+        if abs(norm_offset) < self.inflection:
             scaled_error = np.sign(norm_offset)*(1/self.inflection)*(norm_offset**2)
         else:
             scaled_error = norm_offset

@@ -8,8 +8,8 @@
   },
   "latitudinal_controller": {
        "3": {
-          "Kp": 0.90,
-          "Kd": 0.10,
+          "Kp": 1,
+          "Kd": 0.5,
           "Ki": 0.00
     },
        "4": {

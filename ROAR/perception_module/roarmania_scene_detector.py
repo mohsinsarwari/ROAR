@@ -39,8 +39,12 @@ class RoarmaniaSceneDetector(Detector):
 		self.lane_bottom = self.processing_scale[0]
 
 		# range to detect patch
-		self.patch_top = 6 * increment
+		self.patch_top = int(6.5 * increment)
 		self.patch_bottom = self.processing_scale[0]
+
+		# range to detect backup waypoint
+		self.backup_top = 6 * increment
+		self.backup_bottom = 7 * increment
 
 		# range to detect on patch
 		self.in_front = 9 * increment
@@ -75,27 +79,30 @@ class RoarmaniaSceneDetector(Detector):
 			hsv_lane_section = hsv[self.lane_top:self.lane_bottom, :, :]
 			#section of image to detect patch
 			hsv_patch_section = hsv[self.patch_top:self.patch_bottom, :, :]
-
-			# hsv_far_section = hsv[self.GROUND_ROW:self.far_bottom, :, :]
-			# far_lane_point, far_error = self.detect_lane(hsv_far_section, self.GROUND_ROW)
-			# if far_lane_point is not None:
-			# 	image = cv2.circle(image, (far_lane_point[1], far_lane_point[0]), 15, (0, 0, 100), -1)
+			#section of image for backup waypoint
+			#hsv_backup_section = hsv[self.backup_top:self.backup_bottom, :, :]
 
 			lane_point = self.detect_lane(hsv_lane_section, self.lane_top)
 			scene["lane_point"] = lane_point
 
+			# backup_lane_point = self.detect_lane(hsv_backup_section, self.backup_top, backup=True)
+			# scene["backup_lane_point"] = backup_lane_point
+
 			if lane_point is not None:
 				image = cv2.circle(image, (lane_point[1], lane_point[0]), 15, (0, 255, 0), -1)
 
+			# if backup_lane_point is not None:
+			# 	image = cv2.circle(image, (backup_lane_point[1], backup_lane_point[0]), 15, (0, 255, 0), -1)
+
 			if self.run_detect_patches:        
 
-				patches, points = self.detect_patches(hsv_patch_section, self.patch_top, lane_point)
+				patches = self.detect_patches(hsv_patch_section, self.patch_top, lane_point)
 				scene["patches"] = patches
-				for point in points:
-					if point[0] == "ice":
-						image = cv2.circle(image, (point[1][1], point[1][0]), 15, (100, 100, 0), -1)
+				for patch in patches:
+					if patch[0] == "ice":
+						image = cv2.circle(image, (patch[1][1], patch[1][0]), 15, (255, 0, 0), -1)
 					else:
-						image = cv2.circle(image, (point[1][1], point[1][0]), 15, (0, 100, 100), -1)
+						image = cv2.circle(image, (patch[1][1], patch[1][0]), 15, (0, 0, 255), -1)
 
 				hsv_on_patch = hsv[self.in_front:, :, :]
 				on_patch = self.detect_on_patch(hsv_on_patch)
@@ -110,14 +117,22 @@ class RoarmaniaSceneDetector(Detector):
 		# image = cv2.line(image, (0, self.GROUND_ROW*self.ratio), (image.shape[1], self.GROUND_ROW*self.ratio), [0, 255, 255], 2)
 		# image = cv2.line(image, (0, self.far_bottom*self.ratio), (image.shape[1], self.far_bottom*self.ratio), [0, 255, 255], 2)
 
+		#center line vertical
 		iimage = cv2.line(image, (image.shape[1] // 2, 0), (image.shape[1] // 2, image.shape[0]), [255, 255, 0], 3) 
 
-		image = cv2.line(image, (0, self.patch_top*self.ratio), (image.shape[1], self.patch_top*self.ratio), [0, 255, 255], 3)
-		image = cv2.line(image, (0, self.patch_bottom*self.ratio), (image.shape[1], self.patch_bottom*self.ratio), [0, 255, 255], 3)
+		#patch section
+		image = cv2.line(image, (0, self.patch_top*self.ratio), (image.shape[1], self.patch_top*self.ratio), [0, 255, 255], 5)
+		image = cv2.line(image, (0, self.patch_bottom*self.ratio), (image.shape[1], self.patch_bottom*self.ratio), [0, 255, 255], 5)
 
+		#lane section
 		image = cv2.line(image, (0, self.lane_top*self.ratio), (image.shape[1], self.lane_top*self.ratio), [255, 255, 0], 3)
 		image = cv2.line(image, (0, self.lane_bottom*self.ratio), (image.shape[1], self.lane_bottom*self.ratio), [255, 255, 0], 3)
 
+		#backup section
+		# image = cv2.line(image, (0, self.backup_top*self.ratio), (image.shape[1], self.backup_top*self.ratio), [0, 0, 0], 4)
+		# image = cv2.line(image, (0, self.backup_bottom*self.ratio), (image.shape[1], self.backup_bottom*self.ratio), [0, 0, 0], 4)
+
+		#right in front
 		image = cv2.line(image, (0, self.in_front*self.ratio), (image.shape[1], self.in_front*self.ratio), [100, 100, 100], 3)
 
 		cv2.imshow("image", image)
@@ -144,10 +159,13 @@ class RoarmaniaSceneDetector(Detector):
 		return np.median(values, axis=0).astype(int) + [height_offset, 0]
 
 	# return point on lane in main_section
-	def detect_lane(self, hsv_main_section, height_offset):
+	def detect_lane(self, hsv_main_section, height_offset, backup=False):
 
 		mask = cv2.inRange(src=hsv_main_section, lowerb=self.track_lowerb, upperb=self.track_upperb)
 		point = self.find_median(mask, height_offset)
+
+		if backup:
+			cv2.imshow("backup", mask)
 
 		if point is not None:
 			point_up = point*self.ratio
@@ -197,18 +215,17 @@ class RoarmaniaSceneDetector(Detector):
 		mask_boost[:, :5] = 255
 		mask_boost[:, -5:] = 255
 
-		cv2.imshow("mask_ice", mask_ice)
-		cv2.imshow("mask_boost", mask_boost)
+		cv2.imshow('boost', mask_boost)
 
 		params = cv2.SimpleBlobDetector_Params() 
 
 		params.filterByInertia = False
 		params.filterByConvexity = False
 
-		params.minArea = 100
+		params.minArea = 200
 
 		params.filterByCircularity = True
-		params.minCircularity = 0.01
+		params.minCircularity = 0.10
 
 		# Create a detector with the parameters
 		ver = (cv2.__version__).split('.')
@@ -227,31 +244,21 @@ class RoarmaniaSceneDetector(Detector):
 		for keypoint in keypoints_ice:
 			patch = np.array([int(keypoint.pt[1]) + height_offset, int(keypoint.pt[0])])
 			patch_up = patch*self.ratio
-			points.append(["ice", patch_up])
-			if lane_point is None:
-				patches.append(["ice", "left", patch_up[0]])
-			elif (patch_up[1] - lane_point[1]) > 0:
-				patches.append(["ice", "right", patch_up[0]])
-			else:
-				patches.append(["ice", "left", patch_up[0]])
+			patches.append(["ice", patch_up])
 
 		for keypoint in keypoints_boost:
 			patch = np.array([int(keypoint.pt[1]) + height_offset, int(keypoint.pt[0])])
 			patch_up = patch*self.ratio
-			points.append(["boost", patch_up])
-			if lane_point is None:
-				patches.append(["boost", "left", patch_up[0]])
-			elif (patch_up[1] - lane_point[1]) > 0:
-				patches.append(["boost", "right", patch_up[0]])
-			else:
-				patches.append(["boost", "left", patch_up[0]])
+			patches.append(["boost", patch_up])
 
-		return patches, points
+		return patches
 
 	def detect_on_patch(self, hsv_on_patch):
 
 		mask_ice = cv2.inRange(src=hsv_on_patch, lowerb=self.ice_lowerb, upperb=self.ice_upperb)
 		mask_boost = cv2.inRange(src=hsv_on_patch, lowerb=self.boost_lowerb, upperb=self.boost_upperb)
+
+		cv2.imshow("mask_boost", mask_boost)
 
 		perc_ice = np.sum(mask_ice) / (255*hsv_on_patch.shape[0]*hsv_on_patch.shape[1])
 		perc_boost = np.sum(mask_boost) / (255*hsv_on_patch.shape[0]*hsv_on_patch.shape[1])
