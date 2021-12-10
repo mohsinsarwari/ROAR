@@ -22,6 +22,7 @@ class RoarmaniaAgent(Agent):
         self.planner = ROARManiaPlanner(self)
         self.on_patch = None
         self.iter = 25
+        self.boost_iter = 60
 
     def run_step(self, vehicle: Vehicle, sensors_data: SensorsData) -> VehicleControl:
         super().run_step(sensors_data=sensors_data, vehicle=vehicle)
@@ -41,7 +42,16 @@ class RoarmaniaAgent(Agent):
                 self.on_patch = None
                 self.iter = 25
 
-            self.kwargs["on_patch"] = self.on_patch
+            # keeping accelerate for 60 iters after pass booster
+            if 0 < self.boost_iter < 60:
+                self.kwargs["on_patch"] = "boost"
+                self.boost_iter -= 1
+            elif self.on_patch == "boost":
+                self.boost_iter = 60
+                self.boost_iter -= 1
+                self.kwargs["on_patch"] = self.on_patch
+            else:
+                self.kwargs["on_patch"] = self.on_patch
 
             if lat_error is not None:
                 self.kwargs["lat_error"] = lat_error

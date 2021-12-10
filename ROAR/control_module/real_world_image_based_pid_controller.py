@@ -32,8 +32,8 @@ class RealWorldImageBasedPIDController(Controller):
             self.max_throttle = 0.03
             #self.target_speed = 3
         elif current_patch == "boost":
-            self.min_throttle = 0.09
-            self.max_throttle = 0.09
+            self.min_throttle = 0.08
+            self.max_throttle = 0.08
             #self.target_speed = 1.0
         elif current_patch is None:
             self.min_throttle = 0.06
@@ -62,6 +62,7 @@ class RealWorldImageBasedPIDController(Controller):
         e_d = k_d * error_dt
         print("Ed: ", e_d)
         e_i = k_i * error_it
+        print("lat PID values:",k_p,k_d,k_i)
         print("Steering: ", e_p + e_d + e_i)
         lat_control = np.clip((e_p + e_d + e_i), -1, 1)
         # print(f"speed = {self.agent.vehicle.get_speed(self.agent.vehicle)} "
@@ -77,6 +78,7 @@ class RealWorldImageBasedPIDController(Controller):
     def long_pid_control(self) -> float:
         k_p, k_d, k_i = self.find_k_values(self.agent.vehicle, self.long_config)
         e = self.target_speed - self.agent.vehicle.get_speed(self.agent.vehicle)
+        print(f"Current speed: {self.agent.vehicle.get_speed(self.agent.vehicle)}")
         neutral = -90
         incline = self.agent.vehicle.transform.rotation.pitch - neutral
         e = e * - 1 if incline < -10 else e

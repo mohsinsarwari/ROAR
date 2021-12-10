@@ -15,6 +15,7 @@ class ROARManiaPlanner(Module):
         self.agent = agent
         self.side = "center" # Either "center", "left", "right"
         self.last_error = None
+        self.action_threshold = 200
 
 
         #norm_error value at which to increase scale
@@ -51,10 +52,12 @@ class ROARManiaPlanner(Module):
             print("sorted patches: ", scene["patches"])
             for i, patch in enumerate(scene["patches"]):
                 patch_t, patch_point = patch
-                if patch_t == "ice":
-                    error = self.avoid(patch_point, error)
+                y, x = patch_point
+                # if patch_t == "ice":
+                #     error = self.avoid(patch_point, error)
                 if patch_t == "boost":
                     error = self.pursue(patch_point, error)
+
 
         self.last_error = error
         return error
