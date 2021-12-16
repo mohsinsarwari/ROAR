@@ -13,11 +13,7 @@ class ROARManiaPlanner(Module):
         self.logger = logging
         self.logger = logging.getLogger(__name__)
         self.agent = agent
-        self.side = "center" # Either "center", "left", "right"
         self.last_error = None
-
-        # norm_error value at which to increase scale
-        self.inflection = 0.35
 
         # boundary of detecting future turn
         self.turn_boundary = 0.75
@@ -49,11 +45,12 @@ class ROARManiaPlanner(Module):
 
         turn_exist = False
         if scene["backup_lane_point"] is not None:
-            turn_exist = abs(self.point_to_error(scene["backup_lane_point"])) > self.turn_boundary
-            print("backup error: ", self.point_to_error(scene["backup_lane_point"]))
+            #turn_exist = abs(self.point_to_error(scene["backup_lane_point"])) > self.turn_boundary
+            #print("backup error: ", self.point_to_error(scene["backup_lane_point"]))
+            pass
         else:
             turn_exist = True
-        print("turn: ", turn_exist)
+        #print("turn: ", turn_exist)
 
         # We know where the lane is, and there are patches
         if scene["patches"]:
@@ -82,19 +79,19 @@ class ROARManiaPlanner(Module):
     def point_to_error(self, point):
         #get pixel_offset from center
         pixel_offset = point[1] - self.agent.center_x
+        print("pixel_offset: ", pixel_offset)
 
         #normalize to [-1, 1]
         norm_offset = pixel_offset / 360
 
+        print("norm_offset: ", norm_offset)
+
         #scale to have smaller errors be less significant
-        if abs(norm_offset) < self.inflection:
-            scaled_error = np.sign(norm_offset)*(1/self.inflection)*(norm_offset**2)
-        else:
-            scaled_error = norm_offset
+        scaled_error = np.sign(norm_offset) * (abs(norm_offset)**2)
+
+        print("scaled_error: ", scaled_error)
 
         return scaled_error
-
-
                     
     def repeat_prev_action(self):
         return None

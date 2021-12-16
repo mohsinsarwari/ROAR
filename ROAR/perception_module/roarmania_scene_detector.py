@@ -26,7 +26,7 @@ class RoarmaniaSceneDetector(Detector):
 		increment = height // 10
 
 		#detect patches as well?
-		self.run_detect_patches = True
+		self.run_detect_patches = False
 
 		# what pixel row the ground begins on (roughly)
 		self.GROUND_ROW = 6 * increment
@@ -66,9 +66,6 @@ class RoarmaniaSceneDetector(Detector):
 		self.patch_ahead_ice = False
 		self.patch_ahead_boost = False
 
-		# deque for smoothening error
-		self.error_deqeue = deque(maxlen=3)
-
 	def run_in_series(self, **kwargs):
 		scene = dict()
 		if self.agent.front_rgb_camera.data is not None:
@@ -86,7 +83,7 @@ class RoarmaniaSceneDetector(Detector):
 			lane_point = self.detect_lane(hsv_lane_section, self.lane_top)
 			scene["lane_point"] = lane_point
 
-			backup_lane_point = self.detect_lane(hsv_backup_section, self.backup_top, backup=True)
+			backup_lane_point = [0, 0]#self.detect_lane(hsv_backup_section, self.backup_top, backup=True)
 			scene["backup_lane_point"] = backup_lane_point
 
 			if lane_point is not None:
@@ -163,6 +160,7 @@ class RoarmaniaSceneDetector(Detector):
 	def detect_lane(self, hsv_main_section, height_offset, backup=False):
 
 		mask = cv2.inRange(src=hsv_main_section, lowerb=self.track_lowerb, upperb=self.track_upperb)
+		cv2.imshow("lane", mask)
 		point = self.find_median(mask, height_offset)
 
 		if point is not None:

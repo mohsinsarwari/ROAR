@@ -10,6 +10,7 @@ from collections import deque
 import logging
 import numpy as np
 from typing import Optional
+import os
 
 
 class RoarmaniaAgent(Agent):
@@ -21,15 +22,14 @@ class RoarmaniaAgent(Agent):
         self.prev_steerings: deque = deque(maxlen=10)
         self.planner = ROARManiaPlanner(self)
         self.on_patch = None
-
         self.default_iter = 30
         self.iter = self.default_iter
 
     def run_step(self, vehicle: Vehicle, sensors_data: SensorsData) -> VehicleControl:
         super().run_step(sensors_data=sensors_data, vehicle=vehicle)
 
-
         if self.front_rgb_camera.data is not None:
+
             scene = self.scene_detector.run_in_series()
             lat_error = self.planner.run_in_series(scene)
 
@@ -42,17 +42,6 @@ class RoarmaniaAgent(Agent):
             if self.iter == 0:
                 self.on_patch = None
                 self.iter = self.default_iter
-
-            # # keeping accelerate for 60 iters after pass booster
-            # if 0 < self.boost_iter < 60:
-            #     self.kwargs["on_patch"] = "boost"
-            #     self.boost_iter -= 1
-            # elif self.on_patch == "boost":
-            #     self.boost_iter = 60
-            #     self.boost_iter -= 1
-            #     self.kwargs["on_patch"] = self.on_patch
-            # else:
-            #     self.kwargs["on_patch"] = self.on_patch
 
             if lat_error is not None:
                 self.kwargs["lat_error"] = lat_error
