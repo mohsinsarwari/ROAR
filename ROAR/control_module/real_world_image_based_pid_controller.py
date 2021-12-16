@@ -21,29 +21,40 @@ class RealWorldImageBasedPIDController(Controller):
         self.config = json.load(Path(self.agent.agent_settings.pid_config_file_path).open('r'))
         self.long_config = self.config["longitudinal_controller"]
         self.lat_config = self.config["latitudinal_controller"]
-        self.min_throttle = 0.06
-        self.max_throttle = 0.07
+        self.default_min_throttle = 0.06
+        self.default_max_throttle = 0.07
+        self.min_throttle = self.default_min_throttle
+        self.max_throttle = self.default_max_throttle
+        self.min_boost = 0.081
+        self.max_boost = 0.081
+        self.min_ice = 0.04
+        self.max_ice = 0.04
 
     def run_in_series(self, next_waypoint=None, **kwargs) -> VehicleControl:
-        current_patch = self.agent.kwargs.get("on_patch")
+        current_patch = self.agent.on_patch
         print("CURRENT_PATCH: ", current_patch)
         if current_patch == "ice":
-            self.min_throttle = 0.03
-            self.max_throttle = 0.03
+            self.min_throttle = self.min_ice
+            self.max_throttle = self.max_ice
             #self.target_speed = 3
         elif current_patch == "boost":
-            self.min_throttle = 0.08
-            self.max_throttle = 0.08
+            self.min_throttle = self.min_boost
+            self.max_throttle = self.max_boost
             #self.target_speed = 1.0
         elif current_patch is None:
-            self.min_throttle = 0.06
-            self.max_throttle = 0.07
+            self.min_throttle = self.default_min_throttle
+            self.max_throttle = self.default_max_throttle
             #self.target_speed = 2
 
         print("target speed: ", self.target_speed)
 
-        steering = self.lateral_pid_control()
+        if current_patch == "boost":
+            #at start, steering damped to 0.3 * value, by end back to 1
+            steering = self.lateral_pid_control() * ((((0.2 - 1) / self.agent.default_iter) * self.agent.iter) + 1)
+        else:
+            steering = self.lateral_pid_control()
 
+        print("steering: ", steering)
         throttle = self.long_pid_control()
         print("throttle: ", throttle)
         return VehicleControl(throttle=throttle, steering=steering)
@@ -58,12 +69,8 @@ class RealWorldImageBasedPIDController(Controller):
         #       f"kp, kd, ki = {k_p, k_d, k_i} ")
 
         e_p = k_p * error
-        print("Ep: ", e_p)
         e_d = k_d * error_dt
-        print("Ed: ", e_d)
         e_i = k_i * error_it
-        print("lat PID values:",k_p,k_d,k_i)
-        print("Steering: ", e_p + e_d + e_i)
         lat_control = np.clip((e_p + e_d + e_i), -1, 1)
         # print(f"speed = {self.agent.vehicle.get_speed(self.agent.vehicle)} "
         #       f"e = {round((e_p + e_d + e_i), 3)}, "
