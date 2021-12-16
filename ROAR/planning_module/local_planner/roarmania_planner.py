@@ -17,9 +17,11 @@ class ROARManiaPlanner(Module):
         self.last_error = None
         self.action_threshold = 200
 
-
-        #norm_error value at which to increase scale
+        # norm_error value at which to increase scale
         self.inflection = 0.35
+
+        # boundary of detecting future turn
+        self.turn_boundary = 0.75
 
 
     def run_in_series(self, scene) -> Any:
@@ -46,18 +48,27 @@ class ROARManiaPlanner(Module):
         else:
             error = self.last_error
 
+        turn_exist = False
+        if scene["backup_lane_point"] is not None:
+            turn_exist = abs(self.point_to_error(scene["backup_lane_point"])) > self.turn_boundary
+            print("backup error: ", self.point_to_error(scene["backup_lane_point"]))
+        else:
+            turn_exist = True
+        print("turn: ", turn_exist)
+
         # We know where the lane is, and there are patches
         if scene["patches"]:
             scene["patches"].sort(key=lambda patch: patch[1][1]) # patch[1][0] is the y_offset
             print("sorted patches: ", scene["patches"])
+
             for i, patch in enumerate(scene["patches"]):
                 patch_t, patch_point = patch
-                y, x = patch_point
-                # if patch_t == "ice":
-                #     error = self.avoid(patch_point, error)
-                if patch_t == "boost":
+                # y, x = patch_point
+                if patch_t == "ice" and turn_exist is False:
+                    error = self.avoid(patch_point, error)
+                    # break
+                if patch_t == "boost" and turn_exist is False:
                     error = self.pursue(patch_point, error)
-
 
         self.last_error = error
         return error
@@ -70,7 +81,7 @@ class ROARManiaPlanner(Module):
 
     def point_to_error(self, point):
         #get pixel_offset from center
-        pixel_offset =  point[1] - self.agent.center_x
+        pixel_offset = point[1] - self.agent.center_x
 
         #normalize to [-1, 1]
         norm_offset = pixel_offset / 360

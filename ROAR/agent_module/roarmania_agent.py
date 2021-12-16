@@ -22,7 +22,7 @@ class RoarmaniaAgent(Agent):
         self.planner = ROARManiaPlanner(self)
         self.on_patch = None
         self.iter = 25
-        self.boost_iter = 60
+        self.boost_iter = 25
 
     def run_step(self, vehicle: Vehicle, sensors_data: SensorsData) -> VehicleControl:
         super().run_step(sensors_data=sensors_data, vehicle=vehicle)

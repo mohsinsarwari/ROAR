@@ -38,11 +38,12 @@ class RoarmaniaSceneDetector(Detector):
 		self.lane_top = 8 * increment
 		self.lane_bottom = self.processing_scale[0]
 
+
 		# range to detect patch
 		self.patch_top = int(6.5 * increment)
 		self.patch_bottom = self.processing_scale[0]
 
-		# range to detect backup waypoint
+		# range to detect backup waypoint also for the further lane detector
 		self.backup_top = 6 * increment
 		self.backup_bottom = 7 * increment
 
@@ -80,19 +81,19 @@ class RoarmaniaSceneDetector(Detector):
 			#section of image to detect patch
 			hsv_patch_section = hsv[self.patch_top:self.patch_bottom, :, :]
 			#section of image for backup waypoint
-			#hsv_backup_section = hsv[self.backup_top:self.backup_bottom, :, :]
+			hsv_backup_section = hsv[self.backup_top:self.backup_bottom, :, :]
 
 			lane_point = self.detect_lane(hsv_lane_section, self.lane_top)
 			scene["lane_point"] = lane_point
 
-			# backup_lane_point = self.detect_lane(hsv_backup_section, self.backup_top, backup=True)
-			# scene["backup_lane_point"] = backup_lane_point
+			backup_lane_point = self.detect_lane(hsv_backup_section, self.backup_top, backup=True)
+			scene["backup_lane_point"] = backup_lane_point
 
 			if lane_point is not None:
 				image = cv2.circle(image, (lane_point[1], lane_point[0]), 15, (0, 255, 0), -1)
 
-			# if backup_lane_point is not None:
-			# 	image = cv2.circle(image, (backup_lane_point[1], backup_lane_point[0]), 15, (0, 255, 0), -1)
+			if backup_lane_point is not None:
+				image = cv2.circle(image, (backup_lane_point[1], backup_lane_point[0]), 15, (0, 255, 0), -1)
 
 			if self.run_detect_patches:        
 
