@@ -50,16 +50,16 @@ class RoarmaniaSceneDetector(Detector):
 		self.in_front = 9 * increment
 
 		#track hsv bounds (captures low wavelength colors (red, yellow, etc.))
-		self.track_lowerb=(0, 0, 195)
-		self.track_upperb=(165, 255, 255)
+		self.track_lowerb=(0, 41, 220)
+		self.track_upperb=(179, 255, 255)
 
 		#boost patch hsv bounds
-		self.boost_lowerb=(200, 190, 210)
+		self.boost_lowerb=(210, 190, 183)
 		self.boost_upperb=(255, 255, 255)
 
 		#ice patch hsv bounds
-		self.ice_lowerb=(170, 0, 0)
-		self.ice_upperb=(255, 255, 150)
+		self.ice_lowerb=(179, 99, 0)
+		self.ice_upperb=(255, 255, 195)
 
 		#are we about to go over a patch?
 		self.patch_ahead_ice = False
@@ -118,7 +118,7 @@ class RoarmaniaSceneDetector(Detector):
 		# image = cv2.line(image, (0, self.far_bottom*self.ratio), (image.shape[1], self.far_bottom*self.ratio), [0, 255, 255], 2)
 
 		#center line vertical
-		iimage = cv2.line(image, (image.shape[1] // 2, 0), (image.shape[1] // 2, image.shape[0]), [255, 255, 0], 3) 
+		image = cv2.line(image, (image.shape[1] // 2, 0), (image.shape[1] // 2, image.shape[0]), [255, 255, 0], 3) 
 
 		#patch section
 		image = cv2.line(image, (0, self.patch_top*self.ratio), (image.shape[1], self.patch_top*self.ratio), [0, 255, 255], 5)
@@ -164,33 +164,11 @@ class RoarmaniaSceneDetector(Detector):
 		mask = cv2.inRange(src=hsv_main_section, lowerb=self.track_lowerb, upperb=self.track_upperb)
 		point = self.find_median(mask, height_offset)
 
-		if backup:
-			cv2.imshow("backup", mask)
-
 		if point is not None:
 			point_up = point*self.ratio
 			return point_up
 		else:
 			return None
-
-	def scale_error(self, error):
-		
-		error_scaling=[
-			(10, 0.1),
-			(20, 0.2),
-			(40, 0.3),
-			(60, 0.4),
-			(80, 0.6),
-			(100, 0.9),
-			(200, 1)
-		]
-
-		# we want small error to be almost ignored, only big errors matter.
-		for e, scale in error_scaling:
-			if abs(error) <= e:
-				error = error * scale
-
-		return error
 
 	# return [((x, y), "patch name"), ...]
 	def detect_patches(self, hsv_main_section, height_offset, lane_point):
@@ -206,6 +184,8 @@ class RoarmaniaSceneDetector(Detector):
 		mask_ice[:, :5] = 255
 		mask_ice[:, -5:] = 255
 
+		cv2.imshow("mask_ice", mask_ice)
+
 
 		mask_boost = cv2.inRange(src=hsv_main_section, lowerb=self.boost_lowerb, upperb=self.boost_upperb)
 		mask_boost = cv2.bitwise_not(mask_boost)
@@ -215,17 +195,16 @@ class RoarmaniaSceneDetector(Detector):
 		mask_boost[:, :5] = 255
 		mask_boost[:, -5:] = 255
 
-		cv2.imshow('boost', mask_boost)
-
 		params = cv2.SimpleBlobDetector_Params() 
 
 		params.filterByInertia = False
 		params.filterByConvexity = False
 
-		params.minArea = 200
+		params.minArea = 250
 
 		params.filterByCircularity = True
-		params.minCircularity = 0.10
+		params.minCircularity = 0.15
+		params.maxCircularity = 0.80
 
 		# Create a detector with the parameters
 		ver = (cv2.__version__).split('.')
